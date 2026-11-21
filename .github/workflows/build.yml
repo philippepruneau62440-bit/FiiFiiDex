@@ -1,5 +1,4 @@
 
-
 name: Build FiiFiiDex APK
 
 on:
@@ -28,10 +27,32 @@ jobs:
           fi
           cp -a "$PROJECT_ROOT"/. .
 
-      - name: Lire la configuration Android
+      - name: Corriger la cible Java Android
         run: |
-          echo "=== APP BUILD GRADLE ==="
-          find . -path "*/app/build.gradle*" -type f -print -exec cat {} \;
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/build.gradle.kts")
+          if not p.is_file():
+              raise SystemExit("Fichier app/build.gradle.kts introuvable")
+
+          s = p.read_text()
+          if "compileOptions" not in s:
+              if "android {" not in s:
+                  raise SystemExit("Bloc android introuvable")
+              s = s.replace(
+                  "android {",
+                  """android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }""",
+                  1
+              )
+              p.write_text(s)
+
+          print(p.read_text())
+          PY
 
       - name: Installer Java
         uses: actions/setup-java@v4
@@ -44,29 +65,12 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Forcer Java et Kotlin en version 17
-        run: |
-          cat > ci-java17.init.gradle <<'EOF'
-          allprojects {
-              afterEvaluate {
-                  tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
-                      sourceCompatibility = '17'
-                      targetCompatibility = '17'
-                  }
-                  tasks.configureEach { task ->
-                      if (task.class.name.contains('KotlinCompile')) {
-                          task.kotlinOptions.jvmTarget = '17'
-                      }
-                  }
-              }
-          }
-          EOF
-
       - name: Compiler FiiFiiDex
-        run: gradle -I ci-java17.init.gradle assembleDebug
+        run: gradle assembleDebug
 
       - name: Publier le fichier APK
         uses: actions/upload-artifact@v4
         with:
           name: FiiFiiDex-APK
           path: app/build/outputs/apk/debug/*.apk
+
