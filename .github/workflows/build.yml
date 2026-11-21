@@ -27,10 +27,6 @@ jobs:
           fi
           cp -a "$PROJECT_ROOT"/. .
 
-      - name: Corriger la version Java
-        run: |
-          find . -path '*/app/build.gradle.kts' -exec sed -i 's/VERSION_1_8/VERSION_17/g' {} +
-
       - name: Installer Java
         uses: actions/setup-java@v4
         with:
@@ -42,8 +38,26 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Forcer Java et Kotlin en version 17
+        run: |
+          cat > ci-java17.init.gradle <<'EOF'
+          allprojects {
+              afterEvaluate {
+                  tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+                      sourceCompatibility = '17'
+                      targetCompatibility = '17'
+                  }
+                  tasks.configureEach { task ->
+                      if (task.class.name.contains('KotlinCompile')) {
+                          task.kotlinOptions.jvmTarget = '17'
+                      }
+                  }
+              }
+          }
+          EOF
+
       - name: Compiler FiiFiiDex
-        run: gradle assembleDebug
+        run: gradle -I ci-java17.init.gradle assembleDebug
 
       - name: Publier le fichier APK
         uses: actions/upload-artifact@v4
