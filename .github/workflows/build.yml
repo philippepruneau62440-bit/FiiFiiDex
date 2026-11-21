@@ -26,7 +26,10 @@ jobs:
             exit 1
           fi
           cp -a "$PROJECT_ROOT"/. .
-          mkdir -p .github/workflows
+
+      - name: Corriger la version Java
+        run: |
+          find . -path '*/app/build.gradle.kts' -exec sed -i 's/VERSION_1_8/VERSION_17/g' {} +
 
       - name: Installer Java
         uses: actions/setup-java@v4
