@@ -1,4 +1,5 @@
 
+
 name: Build FiiFiiDex APK
 
 on:
@@ -26,6 +27,11 @@ jobs:
             exit 1
           fi
           cp -a "$PROJECT_ROOT"/. .
+
+      - name: Lire la configuration Android
+        run: |
+          echo "=== APP BUILD GRADLE ==="
+          find . -path "*/app/build.gradle*" -type f -print -exec cat {} \;
 
       - name: Installer Java
         uses: actions/setup-java@v4
