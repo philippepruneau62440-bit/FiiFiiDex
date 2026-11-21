@@ -1,0 +1,59 @@
+
+name: Build FiiFiiDex APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'FiiFiiDex_projet_Android.zip'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Extraire le projet Android
+        run: |
+          mkdir -p _android_project
+          unzip -q FiiFiiDex_projet_Android.zip -d _android_project
+          PROJECT_ROOT=$(dirname "$(find _android_project -name settings.gradle.kts -print -quit)")
+          if [ -z "$PROJECT_ROOT" ]; then
+            echo "Projet Android introuvable dans le ZIP"
+            exit 1
+          fi
+          cp .github/workflows/build.yml /tmp/build.yml
+          cp -a "$PROJECT_ROOT"/. .
+          mkdir -p .github/workflows
+          cp /tmp/build.yml .github/workflows/build.yml
+
+      - name: Installer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Installer Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Installer les composants Android
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Compiler FiiFiiDex
+        run: gradle assembleDebug
+
+      - name: Publier le fichier APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FiiFiiDex-APK
+          path: app/build/outputs/apk/debug/*.apk
